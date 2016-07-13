@@ -497,47 +497,30 @@ The key/value object is useful for keeping track of votes. Let's write a super s
 
 ```js
 // server.js
-function countVotes(votes) {
-var voteCount = {
-    A: 0,
-    B: 0,
-    C: 0,
-    D: 0
-};
-  for (var vote in votes) {
-    voteCount[votes[vote]]++
-  }
-  return voteCount;
-}
-```
+var votes = {};
 
-**Challenge**: You installed `lodash` at the beginning of this tutorial. Can you write a better version of this function using `lodash`?
+io.on('connection', function(socket){
+    console.log('A user has connected.', io.engine.clientsCount);
 
-Now, that we can count up the votes, let's emit an event from the server with a tally of all of the votes each time one is cast.
+    io.sockets.emit('usersConnected', io.engine.clientsCount);
 
-```js
-// server.js
-io.on('connection', function (socket) {
-  console.log('A user has connected.', io.engine.clientsCount);
+    socket.emit('statusMessage', 'You have connected.')
 
-  io.sockets.emit('userConnection', io.engine.clientsCount);
-
-  socket.emit('statusMessage', 'You have connected.');
-
-  socket.on('message', function (channel, message) {
-    if (channel === 'voteCast') {
-      votes[socket.id] = message;
-      socket.emit('voteCount', countVotes(votes));
-    }
-  });
-
-  socket.on('disconnect', function () {
-    console.log('A user has disconnected.', io.engine.clientsCount);
-    delete votes[socket.id];
-    socket.emit('voteCount', countVotes(votes));
-    io.sockets.emit('userConnection', io.engine.clientsCount);
-  });
+    socket.on('message', function(channel, message){
+	    if (channel === 'voteCast'){
+	        votes[message] = votes[message] + 1 || 1;
+	        socket.emit('voteResults', {votes: votes, message: message})
+	    }
+    });
+    
+    socket.on('disconnect', function(){
+	  console.log('A user has disconnected.', io.engine.clientsCount);
+	  delete votes[socket.id];
+	  console.log(votes);
+	  io.sockets.emit('usersConnected', io.engine.clientsCount);
+    })
 });
+
 ```
 
 On the client, we'll log this to the console for now:
